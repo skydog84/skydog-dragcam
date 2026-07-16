@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0f14">
+<title>SkyDog DragCam — Powered by SkyDog AI</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e141d; --line:#1f2c3d;
+    --text:#e8f0f8; --dim:#8fa3b8; --accent:#35e08a; --accent2:#25b56d;
+    --danger:#ff5a5a; --warn:#ffb03a; --blue:#4aa3ff;
+    --shadow:0 8px 30px rgba(0,0,0,.55);
+    --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+    --safe-left:env(safe-area-inset-left,0px); --safe-right:env(safe-area-inset-right,0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;padding:0;overflow:hidden;background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);
+    overscroll-behavior:none}
+  button{font-family:inherit}
+
+  /* ---------- fatal error banner ---------- */
+  #fatal{display:none;position:absolute;top:0;left:0;right:0;z-index:9999;background:#7a1420;color:#fff;
+    padding:calc(10px + var(--safe-top)) 14px 10px;font-size:12.5px;line-height:1.4}
+
+  .screen{position:absolute;inset:0;display:none;flex-direction:column}
+  .screen.on{display:flex}
+
+  /* ---------- Home ---------- */
+  #home{align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
+    background:radial-gradient(120% 90% at 50% 0%, #101b29 0%, #0b0f14 60%)}
+  #home .dog{width:96px;height:96px;border-radius:24px;box-shadow:var(--shadow)}
+  #home h1{margin:6px 0 0;font-size:28px;letter-spacing:1.5px}
+  #home h1 span{color:var(--accent)}
+  #home .sub{color:var(--dim);font-size:13px;letter-spacing:.6px;margin:0 0 8px;max-width:300px;line-height:1.5}
+  .bigbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:min(320px,86vw);
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#04140b;border:0;border-radius:999px;
+    padding:17px 20px;font-size:17px;font-weight:900;letter-spacing:1px;cursor:pointer;
+    box-shadow:0 0 0 4px rgba(53,224,138,.15),0 10px 30px rgba(0,0,0,.6)}
+  .bigbtn:active{transform:scale(.97)}
+  .ghostbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:min(320px,86vw);
+    background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:999px;
+    padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:var(--shadow)}
+  .ghostbtn:active{transform:scale(.97)}
+  #home .privacy{font-size:11px;color:#5c6f83;max-width:300px;line-height:1.5;margin-top:6px}
+
+  /* ---------- Camera ---------- */
+  #camscreen{background:#000}
+  #cam{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1}
+  #vid{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+  #camui{position:absolute;inset:0;z-index:10;pointer-events:none}
+  #camui>*{pointer-events:auto}
+
+  .cbtn{width:46px;height:46px;border-radius:14px;background:rgba(17,24,35,.82);border:1px solid var(--line);
+    color:var(--text);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+    box-shadow:var(--shadow);user-select:none;backdrop-filter:blur(6px)}
+  .cbtn:active{transform:scale(.92)}
+  .cbtn.active{background:var(--accent);color:#04140b;border-color:var(--accent)}
+
+  #camtop{position:absolute;top:calc(10px + var(--safe-top));left:calc(10px + var(--safe-left));
+    right:calc(10px + var(--safe-right));display:flex;justify-content:space-between;align-items:flex-start}
+  #camtopright{display:flex;gap:9px}
+  #unitsbtn{font-size:12px;font-weight:900;letter-spacing:.5px}
+
+  #cambottom{position:absolute;left:0;right:0;bottom:calc(16px + var(--safe-bottom));
+    display:flex;align-items:center;justify-content:center;gap:34px}
+  #photobtn,#dragbtn,#gallerybtn2{width:54px;height:54px;border-radius:50%;background:rgba(17,24,35,.85);
+    border:1px solid var(--line);color:var(--text);font-size:23px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;box-shadow:var(--shadow);backdrop-filter:blur(6px)}
+  #photobtn:active,#dragbtn:active,#gallerybtn2:active{transform:scale(.92)}
+  #dragbtn.active{background:var(--warn);color:#221400;border-color:var(--warn)}
+  #recbtn{width:76px;height:76px;border-radius:50%;border:4px solid #fff;background:rgba(0,0,0,.25);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+  #recbtn .core{width:56px;height:56px;border-radius:50%;background:var(--danger);transition:all .18s ease}
+  #recbtn.rec .core{width:30px;height:30px;border-radius:8px}
+  #recbtn:active{transform:scale(.95)}
+
+  /* status pill while waiting for GPS */
+  #gpspill{position:absolute;top:calc(66px + var(--safe-top));left:50%;transform:translateX(-50%);
+    background:rgba(17,24,35,.85);border:1px solid var(--line);border-radius:999px;padding:7px 14px;
+    font-size:12px;color:var(--dim);display:none;white-space:nowrap;backdrop-filter:blur(6px)}
+
+  /* ---------- Sheets ---------- */
+  .sheet{position:absolute;left:0;right:0;bottom:0;z-index:2000;background:var(--panel2);border-top:1px solid var(--line);
+    border-radius:22px 22px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.7);padding:16px 16px calc(20px + var(--safe-bottom));
+    transform:translateY(105%);transition:transform .25s ease;max-height:80vh;overflow-y:auto}
+  .sheet.open{transform:translateY(0)}
+  .sheet h3{margin:2px 0 12px;font-size:16px;letter-spacing:.5px}
+  .grabber{width:42px;height:4px;border-radius:4px;background:var(--line);margin:0 auto 12px}
+  .sheetclose{position:absolute;top:14px;right:14px;border:0;background:var(--panel);border:1px solid var(--line);
+    color:var(--dim);width:30px;height:30px;border-radius:10px;font-size:15px;cursor:pointer}
+
+  /* timing sheet */
+  #dragarm{width:100%;border:0;border-radius:14px;padding:16px;font-size:16px;font-weight:900;letter-spacing:1px;
+    cursor:pointer;background:linear-gradient(135deg,var(--warn),#e89a20);color:#221400;margin-bottom:12px}
+  #dragarm.armed{background:var(--danger);color:#fff}
+  .dragnote{font-size:12px;color:var(--dim);line-height:1.55;margin-bottom:12px}
+  .runrow{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+  .runrow b{font-variant-numeric:tabular-nums;font-size:15px}
+  .runrow .d{color:var(--dim);font-size:11px}
+  .runrow button{border:0;background:none;color:var(--danger);font-size:15px;cursor:pointer;padding:4px}
+
+  /* ---------- Gallery ---------- */
+  #galscreen{background:var(--bg);z-index:500}
+  #galhead{display:flex;align-items:center;gap:10px;padding:calc(12px + var(--safe-top)) 14px 12px;border-bottom:1px solid var(--line)}
+  #galhead h2{margin:0;font-size:17px;letter-spacing:.5px;flex:1}
+  #galgrid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:3px;align-content:start}
+  .gitem{position:relative;aspect-ratio:1;background:var(--panel);border:0;padding:0;cursor:pointer;overflow:hidden}
+  .gitem img{width:100%;height:100%;object-fit:cover;display:block}
+  .gitem .badge{position:absolute;right:5px;bottom:5px;background:rgba(0,0,0,.65);border-radius:6px;
+    padding:2px 6px;font-size:10px;color:#fff;font-weight:700}
+  #galempty{grid-column:1/-1;text-align:center;color:var(--dim);font-size:13px;padding:60px 20px;line-height:1.6}
+
+  /* preview modal */
+  #preview{position:absolute;inset:0;z-index:3000;background:rgba(0,0,0,.94);display:none;flex-direction:column}
+  #preview.on{display:flex}
+  #pvmedia{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding:10px}
+  #pvmedia img,#pvmedia video{max-width:100%;max-height:100%;border-radius:10px}
+  #pvbar{display:flex;gap:10px;padding:12px 14px calc(16px + var(--safe-bottom));justify-content:center}
+  .pvbtn{flex:1;max-width:130px;border:0;border-radius:13px;padding:13px 8px;font-size:13.5px;font-weight:800;cursor:pointer}
+  .pvbtn.share{background:var(--accent);color:#04140b}
+  .pvbtn.save{background:var(--blue);color:#fff}
+  .pvbtn.del{background:var(--panel);color:var(--danger);border:1px solid var(--line)}
+  #pvclose{position:absolute;top:calc(12px + var(--safe-top));right:14px;z-index:10}
+
+  /* toast */
+  #toast{position:absolute;left:50%;bottom:calc(120px + var(--safe-bottom));transform:translateX(-50%) translateY(20px);
+    background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:11px 18px;
+    font-size:13.5px;font-weight:600;box-shadow:var(--shadow);opacity:0;transition:all .25s ease;z-index:5000;
+    pointer-events:none;white-space:nowrap;max-width:88vw;overflow:hidden;text-overflow:ellipsis}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* flash effect for photo */
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:100}
+  #flash.go{animation:flashanim .3s ease}
+  @keyframes flashanim{0%{opacity:.85}100%{opacity:0}}
+</style>
+</head>
+<body>
+<div id="fatal"></div>
+
+<!-- ================= HOME ================= -->
+<div id="home" class="screen on">
+  <img class="dog" src="icon-192.png" alt="SkyDog AI">
+  <h1>SkyDog <span>DragCam</span></h1>
+  <p class="sub">Point. Record. Your <b>speed, elevation &amp; compass</b> are burned right into every video &amp; photo — plus quarter-mile drag timing.</p>
+  <button class="bigbtn" id="opencam">📸 &nbsp;OPEN CAMERA</button>
+  <button class="ghostbtn" id="demobtn">▶ Try the demo (no car needed)</button>
+  <button class="ghostbtn" id="gallerybtn">🖼 My captures</button>
+  <p class="privacy">Uses your camera, mic &amp; GPS — all on-device. No accounts, no uploads, no tracking. Captures save right on your phone.</p>
+</div>
+
+<!-- ================= CAMERA ================= -->
+<div id="camscreen" class="screen">
+  <video id="vid" autoplay playsinline muted></video>
+  <canvas id="cam"></canvas>
+  <div id="flash"></div>
+  <div id="camui">
+    <div id="camtop">
+      <button class="cbtn" id="backbtn" title="Back">✕</button>
+      <div id="camtopright">
+        <button class="cbtn" id="unitsbtn" title="Units">MPH</button>
+        <button class="cbtn" id="galcam" title="My captures">🖼</button>
+        <button class="cbtn" id="flipbtn" title="Flip camera">🔄</button>
+      </div>
+    </div>
+    <div id="gpspill">📡 Waiting for GPS fix…</div>
+    <div id="cambottom">
+      <button id="photobtn" title="Take photo">📷</button>
+      <button id="recbtn" title="Record"><div class="core"></div></button>
+      <button id="dragbtn" title="Drag timing">⏱</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TIMING SHEET ================= -->
+<div class="sheet" id="dragsheet">
+  <div class="grabber"></div>
+  <button class="sheetclose" data-close="dragsheet">✕</button>
+  <h3>⏱ Drag Timing</h3>
+  <p class="dragnote">Come to a <b>complete stop</b>, tap <b>ARM</b>, then launch when ready. The clock starts the instant you move. You'll get 0–30, 0–60, 60&nbsp;ft, 330&nbsp;ft, 1/8&nbsp;mi, 1000&nbsp;ft and <b>1/4&nbsp;mi with trap speed</b> — all burned into your video if you're recording. GPS timing is for fun &amp; practice, not sanctioned racing.</p>
+  <button id="dragarm">🚦 ARM — READY TO LAUNCH</button>
+  <h3 style="margin-top:16px">Past runs</h3>
+  <div id="runlist"><p class="dragnote" id="runempty">No runs yet. Arm it and send it. 🏁</p></div>
+</div>
+
+<!-- ================= GALLERY ================= -->
+<div id="galscreen" class="screen">
+  <div id="galhead">
+    <button class="cbtn" id="galback">←</button>
+    <h2>🖼 My Captures</h2>
+  </div>
+  <div id="galgrid"></div>
+</div>
+
+<!-- preview modal -->
+<div id="preview">
+  <button class="cbtn" id="pvclose">✕</button>
+  <div id="pvmedia"></div>
+  <div id="pvbar">
+    <button class="pvbtn share" id="pvshare">📤 Share</button>
+    <button class="pvbtn save" id="pvsave">⬇ Save</button>
+    <button class="pvbtn del" id="pvdel">🗑 Delete</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   SkyDog DragCam — single-file app. © 2026 SkyDog AI
+   Live camera + burned-in telemetry HUD (speed / elevation /
+   compass / clock) + GPS drag timing + on-device gallery.
+   ============================================================ */
+'use strict';
+
+/* ---------- tiny helpers ---------- */
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const MPS_MPH = 2.2369362921, M_FT = 3.280839895;
+const CARDS = ['N','NE','E','SE','S','SW','W','NW'];
+function cardinal(deg){ return CARDS[Math.round(((deg%360)+360)%360 / 45) % 8]; }
+function fatal(msg){ const f=$('fatal'); f.textContent='⚠️ '+msg; f.style.display='block'; setTimeout(()=>f.style.display='none', 6000); }
+let toastTimer=null;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'), 2600); }
+function fmtClock(d){ return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit', second:'2-digit'}); }
+function fmtDate(d){ return d.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'}); }
+function fmtDur(s){ const m=Math.floor(s/60), ss=Math.floor(s%60); return m+':'+String(ss).padStart(2,'0'); }
+function store(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
+
+/* ---------- app state ---------- */
+const S = {
+  stream:null, running:false, facing:'environment', mirror:false,
+  units: store('sc-units') || 'mph',            // 'mph' | 'kmh'
+  demo:false, demoT0:0, demoTimer:null,
+  geo:{ hasFix:false, lat:null, lon:null, acc:null, altM:null,
+        speedMps:0, rawMps:0, heading:null, fixTime:0, watchId:null },
+  compassDeg:null,                              // device compass fallback
+  maxMps:0,
+  rec:{ active:false, recorder:null, chunks:[], t0:0, mime:'' },
+  drag:{ state:'idle', t0:0, dist:0, lastT:0, lastV:0, splits:[], result:null, doneAt:0 },
+  wakeLock:null,
+};
+
+/* ============================================================
+   CAMERA + RENDER LOOP
+   ============================================================ */
+const vid = $('vid'), cam = $('cam'), ctx = cam.getContext('2d');
+let rafId = null;
+
+async function openCamera(demo){
+  S.demo = !!demo;
+  showScreen('camscreen');
+  if (S.demo){
+    cam.width = 1280; cam.height = 720;
+    S.demoT0 = performance.now();
+    startDemoFeed();
+  } else {
+    try{
+      const constraints = { audio:true,
+        video:{ facingMode:S.facing, width:{ideal:1920}, height:{ideal:1080} } };
+      let stream;
+      try{ stream = await navigator.mediaDevices.getUserMedia(constraints); }
+      catch(e){ // retry without audio (mic denied shouldn't kill the app)
+        stream = await navigator.mediaDevices.getUserMedia({ video:constraints.video });
+      }
+      S.stream = stream;
+      vid.srcObject = stream;
+      await vid.play().catch(()=>{});
+      sizeCanvas();
+      vid.addEventListener('resize', sizeCanvas);
+    }catch(e){
+      fatal('Camera unavailable: ' + (e && e.message || e) + ' — try the demo instead.');
+      showScreen('home'); return;
+    }
+    startGeo();
+    startCompass();
+  }
+  requestWake();
+  S.running = true;
+  S.maxMps = 0;
+  cancelAnimationFrame(rafId);
+  loop();
+}
+
+function sizeCanvas(){
+  const w = vid.videoWidth, h = vid.videoHeight;
+  if (w && h && (cam.width!==w || cam.height!==h)){ cam.width=w; cam.height=h; }
+}
+
+function closeCamera(){
+  S.running = false;
+  cancelAnimationFrame(rafId);
+  if (S.rec.active) stopRecording(true);
+  if (S.stream){ S.stream.getTracks().forEach(t=>t.stop()); S.stream=null; }
+  vid.srcObject = null;
+  stopGeo(); stopDemoFeed(); releaseWake();
+  dragReset();
+  showScreen('home');
+}
+
+function loop(){
+  if (!S.running) return;
+  const W = cam.width, H = cam.height;
+  if (S.demo){ drawDemoScene(W,H); }
+  else if (vid.readyState >= 2){
+    sizeCanvas();
+    if (S.mirror){ ctx.save(); ctx.scale(-1,1); ctx.drawImage(vid,-W,0,W,H); ctx.restore(); }
+    else ctx.drawImage(vid,0,0,W,H);
+  } else { ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H); }
+  drawHUD(W,H);
+  rafId = requestAnimationFrame(loop);
+}
+
+/* ============================================================
+   GPS + COMPASS
+   ============================================================ */
+function startGeo(){
+  if (!('geolocation' in navigator)){ $('gpspill').style.display='block'; $('gpspill').textContent='📡 No GPS on this device'; return; }
+  $('gpspill').style.display='block';
+  S.geo.watchId = navigator.geolocation.watchPosition(
+    p => feedFix({ lat:p.coords.latitude, lon:p.coords.longitude,
+      acc:p.coords.accuracy, altM:p.coords.altitude,
+      speedMps:(p.coords.speed!=null && p.coords.speed>=0) ? p.coords.speed : null,
+      heading:(p.coords.heading!=null && !isNaN(p.coords.heading)) ? p.coords.heading : null,
+      t: p.timestamp || Date.now() }),
+    err => { $('gpspill').textContent = '📡 GPS: ' + (err.code===1 ? 'permission needed — allow location' : 'searching…'); },
+    { enableHighAccuracy:true, maximumAge:0, timeout:20000 });
+}
+function stopGeo(){ if (S.geo.watchId!=null){ navigator.geolocation.clearWatch(S.geo.watchId); S.geo.watchId=null; } S.geo.hasFix=false; }
+
+function havM(la1,lo1,la2,lo2){
+  const R=6371000, r=Math.PI/180, dLa=(la2-la1)*r, dLo=(lo2-lo1)*r;
+  const a=Math.sin(dLa/2)**2 + Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+let prevFix = null;
+/* single entry point for ALL position data (real GPS, demo, tests) */
+function feedFix(f){
+  const g = S.geo;
+  let v = f.speedMps;
+  if (v == null && prevFix && f.lat!=null){          // derive speed from movement
+    const dt = (f.t - prevFix.t)/1000;
+    if (dt > 0.2 && dt < 10) v = havM(prevFix.lat, prevFix.lon, f.lat, f.lon) / dt;
+  }
+  if (v == null) v = g.rawMps;
+  if (v < 0.35) v = 0;                                // GPS noise floor when parked
+  g.rawMps = v;
+  g.speedMps = g.hasFix ? g.speedMps + (v - g.speedMps)*0.45 : v;   // light smoothing
+  if (g.speedMps < 0.15) g.speedMps = 0;
+  if (f.lat!=null){ g.lat=f.lat; g.lon=f.lon; }
+  if (f.acc!=null) g.acc=f.acc;
+  if (f.altM!=null) g.altM = (g.altM==null) ? f.altM : g.altM + (f.altM-g.altM)*0.3;
+  if (f.heading!=null && v > 0.9) g.heading = f.heading;            // heading valid when moving
+  g.fixTime = f.t; g.hasFix = true;
+  if (f.lat!=null) prevFix = { lat:f.lat, lon:f.lon, t:f.t };
+  if (v > S.maxMps) S.maxMps = v;
+  $('gpspill').style.display = 'none';
+  dragFeed(f.t, g.rawMps);
+}
+
+function startCompass(){
+  const handler = e => {
+    let h = null;
+    if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) h = e.webkitCompassHeading;
+    else if (e.absolute && e.alpha != null) h = (360 - e.alpha) % 360;
+    if (h != null) S.compassDeg = h;
+  };
+  const attach = () => {
+    window.addEventListener('deviceorientationabsolute', handler, true);
+    window.addEventListener('deviceorientation', handler, true);
+  };
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+    DeviceOrientationEvent.requestPermission().then(r => { if (r==='granted') attach(); }).catch(()=>{});
+  } else attach();
+}
+
+function headingNow(){
+  const g = S.geo;
+  if (g.heading != null && g.speedMps > 0.9) return g.heading;   // GPS course while moving
+  if (S.compassDeg != null) return S.compassDeg;                 // device compass otherwise
+  return g.heading;                                              // last known, may be null
+}
+
+async function requestWake(){ try{ S.wakeLock = await navigator.wakeLock.request('screen'); }catch(e){} }
+function releaseWake(){ try{ S.wakeLock && S.wakeLock.release(); }catch(e){} S.wakeLock=null; }
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && S.running) requestWake(); });
+
+/* ============================================================
+   HUD — burned into every frame (so it's in photos & videos)
+   ============================================================ */
+function speedDisplay(){
+  const v = S.geo.speedMps;
+  return S.units==='mph' ? v*MPS_MPH : v*3.6;
+}
+function elevDisplay(){
+  const a = S.geo.altM;
+  if (a==null) return null;
+  return S.units==='mph' ? a*M_FT : a;
+}
+
+function drawHUD(W,H){
+  const u = Math.min(W,H)/100;          // 1u = 1% of short side (scales any resolution)
+  ctx.save();
+  ctx.textBaseline = 'alphabetic';
+  ctx.shadowColor = 'rgba(0,0,0,.75)'; ctx.shadowBlur = u*1.2; ctx.shadowOffsetY = u*0.3;
+
+  const hasFix = S.geo.hasFix;
+
+  /* ---- SPEED (bottom-left) ---- */
+  const spd = hasFix ? Math.round(speedDisplay()) : null;
+  ctx.fillStyle = '#fff';
+  ctx.font = '900 ' + (u*17) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.textAlign = 'left';
+  const spdTxt = spd==null ? '--' : String(spd);
+  ctx.fillText(spdTxt, u*4, H - u*7.5);
+  const spdW = ctx.measureText(spdTxt).width;
+  ctx.font = '800 ' + (u*4.2) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.fillStyle = '#35e08a';
+  ctx.fillText(S.units==='mph' ? 'MPH' : 'KM/H', u*4 + spdW + u*2, H - u*7.5);
+  /* max speed */
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.font = '700 ' + (u*3.4) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  const mx = Math.round(S.units==='mph' ? S.maxMps*MPS_MPH : S.maxMps*3.6);
+  ctx.fillText('MAX ' + (hasFix ? mx : '--'), u*4.4, H - u*3.4);
+
+  /* ---- ELEVATION (bottom-right) ---- */
+  const el = elevDisplay();
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#fff';
+  ctx.font = '900 ' + (u*7) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.fillText(el==null ? '--' : Math.round(el).toLocaleString(), W - u*4, H - u*7.5);
+  ctx.fillStyle = '#4aa3ff';
+  ctx.font = '800 ' + (u*3.4) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.fillText('ELEV ' + (S.units==='mph' ? 'FT' : 'M') + ' ▲', W - u*4, H - u*3.4);
+
+  /* ---- CLOCK (top-right, under GPS chip) + WATERMARK (bottom-center) ---- */
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.font = '700 ' + (u*3.4) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  const now = new Date();
+  ctx.fillText(fmtClock(now), W - u*3, u*22);
+  ctx.font = '600 ' + (u*2.8) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,.8)';
+  ctx.fillText(fmtDate(now), W - u*3, u*25.6);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(53,224,138,.95)';
+  ctx.font = '800 ' + (u*3) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.fillText('🛰 SkyDog DragCam', W/2, H - u*2.6);
+
+  /* ---- COMPASS TAPE (top-center) ---- */
+  drawCompass(W, H, u);
+
+  /* ---- REC indicator (burned in, top-left) ---- */
+  if (S.rec.active){
+    const t = (performance.now() - S.rec.t0)/1000;
+    if (Math.floor(t*2)%2===0){ ctx.fillStyle='#ff5a5a'; ctx.beginPath(); ctx.arc(u*5, u*16.5, u*1.5, 0, 7); ctx.fill(); }
+    ctx.fillStyle='#fff'; ctx.textAlign='left';
+    ctx.font='800 ' + (u*3.8) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+    ctx.fillText('REC ' + fmtDur(t), u*8, u*17.8);
+  }
+
+  /* ---- GPS accuracy chip (top-right, subtle) ---- */
+  if (hasFix && S.geo.acc!=null){
+    ctx.textAlign='right'; ctx.fillStyle='rgba(255,255,255,.75)';
+    ctx.font='600 ' + (u*2.8) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+    ctx.fillText('GPS ±' + Math.round(S.geo.acc) + 'm', W - u*3, u*17.5);
+  }
+
+  /* ---- DRAG TIMING overlay (center) ---- */
+  drawDragHUD(W, H, u);
+  ctx.restore();
+}
+
+function drawCompass(W,H,u){
+  const hd = headingNow();
+  const cx = W/2, top = u*4, tapeW = Math.min(W*0.56, u*70), pxPerDeg = tapeW/90; // 90° visible
+  /* backdrop */
+  ctx.save();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(0,0,0,.38)';
+  roundRect(cx - tapeW/2 - u*2, top - u*1.2, tapeW + u*4, u*9.6, u*2); ctx.fill();
+  /* ticks & labels (clip to tape backdrop) */
+  ctx.beginPath(); ctx.rect(cx - tapeW/2 - u*2, top - u*1.2, tapeW + u*4, u*10); ctx.clip();
+  const h = hd==null ? 0 : hd;
+  for (let d = Math.floor((h-50)/15)*15; d <= h+50; d += 15){
+    const x = cx + (d - h)*pxPerDeg;
+    const norm = ((d%360)+360)%360;
+    const major = norm % 45 === 0;
+    ctx.strokeStyle = 'rgba(255,255,255,' + (major? .95 : .45) + ')';
+    ctx.lineWidth = major ? u*0.45 : u*0.3;
+    ctx.beginPath(); ctx.moveTo(x, top + u*4.6); ctx.lineTo(x, top + (major? u*6.8 : u*6)); ctx.stroke();
+    if (major){
+      ctx.fillStyle = norm===0 ? '#ff5a5a' : '#fff';
+      ctx.font = '800 ' + (u*3.2) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(CARDS[norm/45], x, top + u*3.6);
+    }
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.75)'; ctx.shadowBlur=u*1.2;
+  /* center marker + readout */
+  ctx.fillStyle = '#35e08a';
+  ctx.beginPath(); ctx.moveTo(cx, top + u*5); ctx.lineTo(cx - u*1.1, top + u*7); ctx.lineTo(cx + u*1.1, top + u*7); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+  ctx.font = '900 ' + (u*4) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.fillText(hd==null ? '--' : (String(Math.round(h)).padStart(3,'0') + '° ' + cardinal(h)), cx, top + u*11.6);
+  ctx.restore();
+}
+
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+/* ============================================================
+   DRAG TIMING — quarter-mile style, fed by GPS fixes
+   ============================================================ */
+const LAUNCH_V = 0.9;                                  // m/s (~2 mph) = clock starts
+const MARKS = [
+  { key:'30mph',  label:'0–30 MPH',  type:'v', target:13.4112 },
+  { key:'60ft',   label:'60 FT',     type:'d', target:18.288  },
+  { key:'60mph',  label:'0–60 MPH',  type:'v', target:26.8224 },
+  { key:'330ft',  label:'330 FT',    type:'d', target:100.584 },
+  { key:'8mi',    label:'1/8 MILE',  type:'d', target:201.168, trap:true },
+  { key:'1000ft', label:'1000 FT',   type:'d', target:304.8   },
+  { key:'4mi',    label:'1/4 MILE',  type:'d', target:402.336, trap:true, final:true },
+];
+
+function dragArm(){
+  const D = S.drag;
+  D.state='staged'; D.splits=[]; D.result=null; D.dist=0; D.lastT=0; D.lastV=0;
+  $('dragarm').textContent='🛑 DISARM'; $('dragarm').classList.add('armed');
+  $('dragbtn').classList.add('active');
+  closeSheet('dragsheet');
+  toast('Armed — stop fully, then launch! 🚦');
+}
+function dragReset(silent){
+  const D = S.drag;
+  D.state='idle'; D.splits=[]; D.dist=0;
+  $('dragarm').textContent='🚦 ARM — READY TO LAUNCH'; $('dragarm').classList.remove('armed');
+  $('dragbtn').classList.remove('active');
+  if (!silent) toast('Timing disarmed');
+}
+
+let stoppedSince = null;
+function dragFeed(t, v){
+  const D = S.drag;
+  if (D.state==='staged'){
+    if (v >= LAUNCH_V){
+      /* interpolate the true launch instant between the last two fixes */
+      let t0 = t;
+      if (D.lastT && v > D.lastV) t0 = D.lastT + (LAUNCH_V - D.lastV)/(v - D.lastV) * (t - D.lastT);
+      D.t0 = t0; D.dist = 0; D.state='running'; stoppedSince=null;
+      D.lastT = t; D.lastV = v;
+      return;
+    }
+    D.lastT = t; D.lastV = v;
+    return;
+  }
+  if (D.state!=='running'){ D.lastT=t; D.lastV=v; return; }
+
+  const dt = (t - D.lastT)/1000;
+  if (dt <= 0 || dt > 15){ D.lastT=t; D.lastV=v; return; }
+  const prevDist = D.dist, prevV = D.lastV, prevT = D.lastT;
+  D.dist += (v + prevV)/2 * dt;                        // trapezoid integration
+
+  for (const m of MARKS){
+    if (D.splits.find(s=>s.key===m.key)) continue;
+    let crossT = null, trapV = null;
+    if (m.type==='v' && v >= m.target && prevV < m.target){
+      crossT = prevT + (m.target - prevV)/(v - prevV) * (t - prevT);
+    } else if (m.type==='d' && D.dist >= m.target && prevDist < m.target){
+      const f = (m.target - prevDist)/(D.dist - prevDist);
+      crossT = prevT + f*(t - prevT);
+      trapV = prevV + f*(v - prevV);
+    }
+    if (crossT != null){
+      const et = (crossT - D.t0)/1000;
+      D.splits.push({ key:m.key, label:m.label, et, trap: m.trap ? trapV : null });
+      if (m.final){
+        D.result = { date:Date.now(), et, trapMps:trapV, splits:D.splits.slice(), maxMps:S.maxMps };
+        D.state='done'; D.doneAt = performance.now();
+        saveRun(D.result);
+        toast('🏁 1/4 mile: ' + et.toFixed(2) + 's @ ' + fmtV(trapV));
+        setTimeout(()=>{ if (S.drag.state==='done') dragReset(true); }, 9000);
+      }
+    }
+  }
+  /* auto-abort if you stop mid-run for 4s */
+  if (v < 0.45){ if (!stoppedSince) stoppedSince = t; else if (t - stoppedSince > 4000 && D.state==='running'){ dragReset(true); toast('Run cancelled — vehicle stopped'); } }
+  else stoppedSince = null;
+  D.lastT = t; D.lastV = v;
+}
+
+function fmtV(mps){
+  return S.units==='mph' ? (mps*MPS_MPH).toFixed(1)+' mph' : (mps*3.6).toFixed(1)+' km/h';
+}
+
+function drawDragHUD(W,H,u){
+  const D = S.drag;
+  if (D.state==='idle') return;
+  ctx.save();
+  ctx.textAlign='center';
+  if (D.state==='staged'){
+    ctx.fillStyle='rgba(0,0,0,.45)';
+    roundRect(W/2 - u*26, u*20, u*52, u*13, u*2.5); ctx.fill();
+    ctx.fillStyle='#ffb03a';
+    ctx.font='900 ' + (u*5.4) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+    ctx.fillText('🚦 STAGED', W/2, u*26);
+    ctx.fillStyle='#fff'; ctx.font='700 ' + (u*3.2) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+    ctx.fillText('Clock starts when you launch', W/2, u*30.6);
+  } else {
+    const live = D.state==='running';
+    /* live ET runs on the wall clock from the interpolated launch instant */
+    const showEt = live ? Math.max(0, (Date.now() - D.t0)/1000) : D.result.et;
+    const rows = D.splits;
+    const boxH = u*(14 + rows.length*4.4);
+    ctx.fillStyle='rgba(0,0,0,.5)';
+    roundRect(W/2 - u*26, u*20, u*52, boxH, u*2.5); ctx.fill();
+    ctx.fillStyle = live ? '#fff' : '#35e08a';
+    ctx.font='900 ' + (u*8) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+    ctx.fillText(showEt.toFixed(2) + 's', W/2, u*29);
+    ctx.font='800 ' + (u*3) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+    ctx.fillStyle = live ? '#ffb03a' : '#35e08a';
+    ctx.fillText(live ? '⏱ RUN IN PROGRESS' : '🏁 1/4 MILE — ' + fmtV(D.result.trapMps), W/2, u*33);
+    ctx.font='700 ' + (u*3.1) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+    rows.forEach((s,i)=>{
+      const y = u*(37.5 + i*4.4);
+      ctx.fillStyle='rgba(255,255,255,.85)'; ctx.textAlign='left';
+      ctx.fillText(s.label, W/2 - u*22, y);
+      ctx.fillStyle='#fff'; ctx.textAlign='right';
+      ctx.fillText(s.et.toFixed(2)+'s' + (s.trap ? ' @ '+fmtV(s.trap) : ''), W/2 + u*22, y);
+    });
+    ctx.textAlign='center';
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   RECORDING (canvas + mic → MediaRecorder) & PHOTOS
+   ============================================================ */
+function pickMime(){
+  const opts = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus', 'video/webm'];
+  for (const m of opts){ try{ if (MediaRecorder.isTypeSupported(m)) return m; }catch(e){} }
+  return '';
+}
+
+function startRecording(){
+  if (S.rec.active) return;
+  try{
+    const stream = cam.captureStream(30);
+    if (S.stream){ const a = S.stream.getAudioTracks(); if (a.length) stream.addTrack(a[0]); }
+    const mime = pickMime();
+    const rec = new MediaRecorder(stream, mime ? { mimeType:mime, videoBitsPerSecond:8_000_000 } : undefined);
+    S.rec.chunks = []; S.rec.mime = rec.mimeType || mime || 'video/webm';
+    rec.ondataavailable = e => { if (e.data && e.data.size) S.rec.chunks.push(e.data); };
+    rec.onstop = onRecStop;
+    rec.start(1000);
+    S.rec.recorder = rec; S.rec.active = true; S.rec.t0 = performance.now();
+    $('recbtn').classList.add('rec');
+    toast('● Recording — telemetry is burning in');
+  }catch(e){ fatal('Recording not supported here: ' + (e && e.message || e)); }
+}
+
+function stopRecording(silent){
+  if (!S.rec.active) return;
+  S.rec.active = false;
+  $('recbtn').classList.remove('rec');
+  try{ S.rec.recorder.stop(); }catch(e){}
+  if (!silent) toast('Saving video…');
+}
+
+async function onRecStop(){
+  const dur = (performance.now() - S.rec.t0)/1000;
+  const blob = new Blob(S.rec.chunks, { type: S.rec.mime.split(';')[0] });
+  S.rec.chunks = [];
+  if (!blob.size){ toast('Recording was empty'); return; }
+  const thumb = cam.toDataURL('image/jpeg', 0.5);
+  const id = await dbAdd('media', { type:'video', blob, mime:blob.type, date:Date.now(),
+    thumb, dur, maxMph: Math.round(S.maxMps*MPS_MPH) });
+  toast('🎬 Video saved (' + fmtDur(dur) + ')');
+  openPreview({ id, type:'video', blob, date:Date.now(), dur });
+}
+
+async function capturePhoto(){
+  $('flash').classList.remove('go'); void $('flash').offsetWidth; $('flash').classList.add('go');
+  const blob = await new Promise(res => cam.toBlob(res, 'image/jpeg', 0.92));
+  if (!blob){ toast('Could not capture photo'); return; }
+  const thumb = cam.toDataURL('image/jpeg', 0.5);
+  const id = await dbAdd('media', { type:'photo', blob, mime:'image/jpeg', date:Date.now(),
+    thumb, maxMph: Math.round(S.maxMps*MPS_MPH) });
+  toast('📷 Photo saved with telemetry');
+  openPreview({ id, type:'photo', blob, date:Date.now() });
+}
+
+/* ============================================================
+   STORAGE — IndexedDB (media + runs, all on-device)
+   ============================================================ */
+let dbP = null;
+function db(){
+  if (dbP) return dbP;
+  dbP = new Promise((res, rej) => {
+    const rq = indexedDB.open('skydog-dragcam', 1);
+    rq.onupgradeneeded = () => {
+      const d = rq.result;
+      if (!d.objectStoreNames.contains('media')) d.createObjectStore('media', { keyPath:'id', autoIncrement:true });
+      if (!d.objectStoreNames.contains('runs'))  d.createObjectStore('runs',  { keyPath:'id', autoIncrement:true });
+    };
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+  return dbP;
+}
+async function dbAdd(storeName, val){
+  const d = await db();
+  return new Promise((res, rej) => {
+    const tx = d.transaction(storeName, 'readwrite');
+    const rq = tx.objectStore(storeName).add(val);
+    rq.onsuccess = () => res(rq.result);
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function dbAll(storeName){
+  const d = await db();
+  return new Promise((res, rej) => {
+    const rq = d.transaction(storeName).objectStore(storeName).getAll();
+    rq.onsuccess = () => res(rq.result || []);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+async function dbDel(storeName, id){
+  const d = await db();
+  return new Promise((res, rej) => {
+    const tx = d.transaction(storeName, 'readwrite');
+    tx.objectStore(storeName).delete(id);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+async function saveRun(r){
+  await dbAdd('runs', r).catch(()=>{});
+  renderRuns();
+}
+
+async function renderRuns(){
+  const runs = (await dbAll('runs').catch(()=>[])).sort((a,b)=>b.date-a.date);
+  const list = $('runlist');
+  if (!runs.length){ list.innerHTML = '<p class="dragnote">No runs yet. Arm it and send it. 🏁</p>'; return; }
+  list.innerHTML = '';
+  runs.forEach(r => {
+    const row = document.createElement('div'); row.className='runrow';
+    const d = new Date(r.date);
+    row.innerHTML = '<div><b>' + r.et.toFixed(2) + 's</b> @ ' + fmtV(r.trapMps) +
+      '<div class="d">1/4 mile · ' + fmtDate(d) + ' ' + fmtClock(d) + '</div></div>';
+    const btns = document.createElement('div');
+    const share = document.createElement('button'); share.textContent='📤'; share.style.color='var(--accent)';
+    share.onclick = () => shareRun(r);
+    const del = document.createElement('button'); del.textContent='🗑';
+    del.onclick = async () => { await dbDel('runs', r.id); renderRuns(); };
+    btns.append(share, del); row.append(btns);
+    list.append(row);
+  });
+}
+
+function runText(r){
+  let t = '🏁 SkyDog DragCam run — ' + fmtDate(new Date(r.date)) + '\n';
+  r.splits.forEach(s => { t += s.label + ': ' + s.et.toFixed(2) + 's' + (s.trap ? ' @ ' + fmtV(s.trap) : '') + '\n'; });
+  t += '1/4 mile ET ' + r.et.toFixed(2) + 's @ ' + fmtV(r.trapMps);
+  return t;
+}
+async function shareRun(r){
+  const text = runText(r);
+  if (navigator.share){ try{ await navigator.share({ text, title:'SkyDog DragCam run' }); return; }catch(e){} }
+  try{ await navigator.clipboard.writeText(text); toast('Run copied to clipboard'); }
+  catch(e){ toast(text); }
+}
+
+/* ============================================================
+   GALLERY + PREVIEW / SHARE / SAVE
+   ============================================================ */
+let pvItem = null, pvURL = null;
+
+async function openGallery(){
+  showScreen('galscreen');
+  const grid = $('galgrid');
+  grid.innerHTML = '';
+  const items = (await dbAll('media').catch(()=>[])).sort((a,b)=>b.date-a.date);
+  if (!items.length){
+    grid.innerHTML = '<div id="galempty">Nothing here yet.<br>Photos &amp; videos you capture land here —<br>with speed, elevation &amp; compass burned in. 🏁</div>';
+    return;
+  }
+  items.forEach(m => {
+    const b = document.createElement('button'); b.className='gitem';
+    const img = document.createElement('img'); img.src = m.thumb; img.alt = m.type;
+    b.append(img);
+    const badge = document.createElement('span'); badge.className='badge';
+    badge.textContent = m.type==='video' ? '▶ ' + fmtDur(m.dur||0) : '📷';
+    b.append(badge);
+    b.onclick = () => openPreview(m);
+    grid.append(b);
+  });
+}
+
+function extFor(mime){ return (mime||'').includes('mp4') ? 'mp4' : 'webm'; }
+function fileFor(m){
+  const d = new Date(m.date), pad = n => String(n).padStart(2,'0');
+  const stamp = d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds());
+  const ext = m.type==='photo' ? 'jpg' : extFor(m.mime || m.blob.type);
+  return new File([m.blob], 'skydog-dragcam-'+stamp+'.'+ext, { type: m.blob.type });
+}
+
+function openPreview(m){
+  pvItem = m;
+  const wrap = $('pvmedia');
+  wrap.innerHTML = '';
+  if (pvURL) URL.revokeObjectURL(pvURL);
+  pvURL = URL.createObjectURL(m.blob);
+  if (m.type==='video'){
+    const v = document.createElement('video');
+    v.src = pvURL; v.controls = true; v.playsInline = true; v.autoplay = true; v.loop = true;
+    wrap.append(v);
+  } else {
+    const i = document.createElement('img'); i.src = pvURL; wrap.append(i);
+  }
+  $('pvdel').style.display = m.id ? '' : 'none';
+  $('preview').classList.add('on');
+}
+function closePreview(){
+  $('preview').classList.remove('on');
+  $('pvmedia').innerHTML = '';
+  if (pvURL){ URL.revokeObjectURL(pvURL); pvURL = null; }
+  pvItem = null;
+}
+
+async function pvShare(){
+  if (!pvItem) return;
+  const file = fileFor(pvItem);
+  if (navigator.canShare && navigator.canShare({ files:[file] })){
+    try{ await navigator.share({ files:[file], title:'SkyDog DragCam' }); return; }catch(e){ if (e.name==='AbortError') return; }
+  }
+  pvSave(); // fallback: download
+}
+function pvSave(){
+  if (!pvItem) return;
+  const file = fileFor(pvItem);
+  const a = document.createElement('a');
+  a.href = pvURL || URL.createObjectURL(file);
+  a.download = file.name;
+  document.body.append(a); a.click(); a.remove();
+  toast('⬇ Saving ' + file.name);
+}
+async function pvDelete(){
+  if (!pvItem || !pvItem.id) return;
+  await dbDel('media', pvItem.id);
+  closePreview();
+  toast('Deleted');
+  if ($('galscreen').classList.contains('on')) openGallery();
+}
+
+/* ============================================================
+   DEMO MODE — fake camera + a simulated quarter-mile pull
+   ============================================================ */
+let demoState = null;
+function startDemoFeed(){
+  demoState = { t0: Date.now(), phase:'hold' };
+  S.geo.hasFix = false; S.maxMps = 0; prevFix = null;
+  dragArmSilent();
+  S.demoTimer = setInterval(() => {
+    const t = Date.now();
+    const el = (t - demoState.t0)/1000;
+    let v; // speed profile: hold 2s → launch → big pull → coast down
+    if (el < 2) v = 0;
+    else {
+      const tr = el - 2;
+      v = tr < 16 ? 48*(1 - Math.exp(-tr/5.6))          // accelerate toward ~107 mph
+        : Math.max(0, 48*(1 - Math.exp(-16/5.6)) - (tr-16)*4);  // brake
+    }
+    feedFix({ lat:null, lon:null, acc:4, altM: 189 + el*0.4, speedMps:v,
+      heading: 271 + Math.sin(el/3)*4, t });
+    if (el > 34){ demoState.t0 = Date.now(); S.maxMps = 0; dragArmSilent(); } // loop the demo
+  }, 100);
+}
+function dragArmSilent(){ const D=S.drag; D.state='staged'; D.splits=[]; D.result=null; D.dist=0; D.lastT=0; D.lastV=0; }
+function stopDemoFeed(){ if (S.demoTimer){ clearInterval(S.demoTimer); S.demoTimer=null; } S.demo=false; }
+
+function drawDemoScene(W,H){
+  const t = (performance.now())/1000;
+  const v = S.geo.speedMps;
+  /* sky */
+  const sky = ctx.createLinearGradient(0,0,0,H*0.55);
+  sky.addColorStop(0,'#0e2a4a'); sky.addColorStop(1,'#e8875a');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,W,H*0.55);
+  /* sun */
+  ctx.fillStyle = '#ffd27a'; ctx.beginPath(); ctx.arc(W*0.68, H*0.5, H*0.055, 0, 7); ctx.fill();
+  /* ground */
+  const gnd = ctx.createLinearGradient(0,H*0.55,0,H);
+  gnd.addColorStop(0,'#233042'); gnd.addColorStop(1,'#141b26');
+  ctx.fillStyle = gnd; ctx.fillRect(0,H*0.55,W,H*0.45);
+  /* road */
+  ctx.fillStyle = '#2c333d';
+  ctx.beginPath();
+  ctx.moveTo(W*0.5 - W*0.02, H*0.55); ctx.lineTo(W*0.5 + W*0.02, H*0.55);
+  ctx.lineTo(W*0.86, H); ctx.lineTo(W*0.14, H); ctx.closePath(); ctx.fill();
+  /* dashed centerline scrolling with speed */
+  const scroll = (t * (10 + v*6)) % 1;
+  ctx.strokeStyle = '#ffd75e'; ctx.lineCap='round';
+  for (let i=0;i<9;i++){
+    const p0 = clamp((i - scroll)/9, 0, 1), p1 = clamp((i + 0.42 - scroll)/9, 0, 1);
+    if (p1<=p0) continue;
+    const y0 = H*0.55 + (H*0.45)*Math.pow(p0,1.8), y1 = H*0.55 + (H*0.45)*Math.pow(p1,1.8);
+    ctx.lineWidth = 2 + Math.pow(p0,1.8)*10;
+    ctx.beginPath(); ctx.moveTo(W*0.5, y0); ctx.lineTo(W*0.5, y1); ctx.stroke();
+  }
+  /* DEMO badge */
+  ctx.fillStyle='rgba(255,176,58,.92)';
+  ctx.font='800 ' + Math.round(Math.min(W,H)*0.032) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.textAlign='left';
+  ctx.fillText('DEMO MODE', Math.min(W,H)*0.04, H*0.55);
+}
+
+/* ============================================================
+   UI WIRING + BOOT
+   ============================================================ */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id===id));
+}
+function openSheet(id){ $(id).classList.add('open'); }
+function closeSheet(id){ $(id).classList.remove('open'); }
+
+$('opencam').onclick   = () => openCamera(false);
+$('demobtn').onclick   = () => openCamera(true);
+$('gallerybtn').onclick= () => openGallery();
+$('backbtn').onclick   = () => closeCamera();
+$('flipbtn').onclick   = async () => {
+  if (S.demo) return toast('Demo uses a simulated camera');
+  S.facing = S.facing==='environment' ? 'user' : 'environment';
+  S.mirror = S.facing==='user';
+  if (S.stream){ S.stream.getTracks().forEach(t=>t.stop()); S.stream=null; }
+  try{
+    let stream;
+    try{ stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:{ facingMode:S.facing, width:{ideal:1920}, height:{ideal:1080} } }); }
+    catch(e){ stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:S.facing } }); }
+    S.stream = stream; vid.srcObject = stream; await vid.play().catch(()=>{}); sizeCanvas();
+  }catch(e){ fatal('Could not switch camera'); }
+};
+$('unitsbtn').onclick = () => {
+  S.units = S.units==='mph' ? 'kmh' : 'mph';
+  store('sc-units', S.units);
+  $('unitsbtn').textContent = S.units==='mph' ? 'MPH' : 'KM/H';
+  toast('Units: ' + (S.units==='mph' ? 'miles / feet' : 'km / meters'));
+  renderRuns();
+};
+$('photobtn').onclick  = () => capturePhoto();
+$('recbtn').onclick    = () => S.rec.active ? stopRecording() : startRecording();
+$('dragbtn').onclick   = () => { renderRuns(); openSheet('dragsheet'); };
+$('dragarm').onclick   = () => S.drag.state==='idle' ? dragArm() : dragReset();
+document.querySelectorAll('.sheetclose').forEach(b => b.onclick = () => closeSheet(b.dataset.close));
+$('galback').onclick   = () => showScreen(S.running ? 'camscreen' : 'home');
+$('galcam').onclick    = () => openGallery();
+$('pvclose').onclick   = () => closePreview();
+$('pvshare').onclick   = () => pvShare();
+$('pvsave').onclick    = () => pvSave();
+$('pvdel').onclick     = () => pvDelete();
+$('unitsbtn').textContent = S.units==='mph' ? 'MPH' : 'KM/H';
+
+/* PWA */
+if ('serviceWorker' in navigator && !location.search.includes('test=1')){
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+if (location.search.includes('demo=1')) openCamera(true);
+
+/* test hooks (harmless in production) */
+window.__sc = { S, feedFix, dragFeed, dragArm, dragReset, capturePhoto,
+  startRecording, stopRecording, openCamera, closeCamera, dbAll, headingNow, havM };
+</script>
+</body>
+</html>
